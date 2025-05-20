@@ -4,6 +4,8 @@ import lombok.Data;
 
 @Data
 public class TickerResponse {
-    private String symbol;
-    private double lastPrice;
+    
+    private String simbolo;
+
+    private double ultimoPreco;
 }

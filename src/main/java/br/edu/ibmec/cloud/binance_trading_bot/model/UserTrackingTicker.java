@@ -11,5 +11,5 @@ public class UserTrackingTicker {
     private Integer id;
 
     @Column
-    private String symbol;
+    private String simbolo;
 }

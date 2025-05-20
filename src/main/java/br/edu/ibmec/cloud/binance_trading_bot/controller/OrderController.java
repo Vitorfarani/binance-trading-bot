@@ -6,13 +6,7 @@ import br.edu.ibmec.cloud.binance_trading_bot.repository.UserOrderReportReposito
 import br.edu.ibmec.cloud.binance_trading_bot.repository.UserRepository;
 import br.edu.ibmec.cloud.binance_trading_bot.request.OrderRequest;
 import br.edu.ibmec.cloud.binance_trading_bot.response.OrderResponse;
-import br.edu.ibmec.cloud.binance_trading_bot.response.TickerResponse;
 import br.edu.ibmec.cloud.binance_trading_bot.service.BinanceIntegration;
-import com.binance.connector.client.SpotClient;
-import com.binance.connector.client.exceptions.BinanceClientException;
-import com.binance.connector.client.exceptions.BinanceConnectorException;
-import com.binance.connector.client.impl.SpotClientImpl;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -31,77 +22,63 @@ import java.util.Optional;
 public class OrderController {
 
     @Autowired
-    private UserRepository repository;
+    private UserRepository usuarioRepositorio;
 
     @Autowired
-    private UserOrderReportRepository userOrderReportRepository;
+    private UserOrderReportRepository relatorioOrdemRepositorio;
 
     @Autowired
-    private BinanceIntegration binanceIntegration;
-
+    private BinanceIntegration binanceServico;
 
     @PostMapping
-    public ResponseEntity<OrderResponse> sendOrder(@PathVariable("id") int id, @RequestBody OrderRequest request) {
+    public ResponseEntity<OrderResponse> enviarOrdem(@PathVariable("id") int id, @RequestBody OrderRequest pedido) {
+        Optional<User> usuarioOptional = this.usuarioRepositorio.findById(id);
+        if (usuarioOptional.isEmpty())
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
-        Optional<User> optUser = this.repository.findById(id);
+        User usuario = usuarioOptional.get();
+        this.binanceServico.setAPI_KEY(usuario.getBinanceApiKey());
+        this.binanceServico.setSECRET_KEY(usuario.getBinanceSecretKey());
 
-        if (optUser.isEmpty())
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
-
-        //Pego os dados do usuario no banco
-        User user = optUser.get();
-
-        //Configurando a chave de acesso para binance
-        this.binanceIntegration.setAPI_KEY(user.getBinanceApiKey());
-        this.binanceIntegration.setSECRET_KEY(user.getBinanceSecretKey());
-
-        //Enviando a ordem
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        ObjectMapper mapeadorObjeto = new ObjectMapper();
+        mapeadorObjeto.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         try {
-            String result = this.binanceIntegration.createMarketOrder(request.getSymbol(),
-                    request.getQuantity(),
-                    request.getSide());
-            OrderResponse response = objectMapper.readValue(result, OrderResponse.class);
+            String resultado = this.binanceServico.createMarketOrder(pedido.getSimbolo(),
+                    pedido.getQuantidade(),
+                    pedido.getLado());
+            OrderResponse resposta = mapeadorObjeto.readValue(resultado, OrderResponse.class);
 
-            //Grava na tabela a nova ordem de contra
-            if (request.getSide().equals("BUY")) {
-                UserOrderReport report = new UserOrderReport();
-                report.setSymbol(request.getSymbol());
-                report.setQuantity(request.getQuantity());
-                report.setBuyPrice(response.getFills().get(0).getPrice());
-                report.setDtOperation(LocalDateTime.now());
+            if ("BUY".equals(pedido.getLado())) {
+                UserOrderReport relatorio = new UserOrderReport();
+                relatorio .setSimbolo(pedido.getSimbolo());
+                relatorio.setQuantidade(pedido.getQuantidade());
+                relatorio.setPrecoCompra(resposta.getPreenchimentos().get(0).getPreco());
+                relatorio.setDataOperacao(LocalDateTime.now());
 
-                //Grava na base a operação
-                this.userOrderReportRepository.save(report);
+                this.relatorioOrdemRepositorio.save(relatorio);
 
-                //Grava o operação para o usuário
-                user.getOrderReports().add(report);
-                this.repository.save(user);
+                usuario.getRelatoriosDeOrdens().add(relatorio);
+                this.usuarioRepositorio.save(usuario);
             }
 
-            if (request.getSide().equals("SELL")) {
-                UserOrderReport order = null;
-                for (UserOrderReport item : user.getOrderReports()) {
-                    //Achei a operação de compra anterior
-                    if (item.getSymbol().equals(request.getSymbol()) && item.getSellPrice() == 0) {
-                        order = item;
+            if ("SELL".equals(pedido.getLado())) {
+                UserOrderReport ordem = null;
+                for (UserOrderReport item : usuario.getRelatoriosDeOrdens()) {
+                    if (item.getSimbolo().equals(pedido.getSimbolo()) && item.getPrecoVenda() == 0) {
+                        ordem = item;
                         break;
                     }
                 }
 
-                //Grava o preço de saida da operação
-                order.setSellPrice(response.getFills().get(0).getPrice());
-
-                //Grava na base a operação
-                this.userOrderReportRepository.save(order);
+                if (ordem != null) {
+                    ordem.setPrecoVenda(resposta.getPreenchimentos().get(0).getPreco());
+                    this.relatorioOrdemRepositorio.save(ordem);
+                }
             }
 
-            return new ResponseEntity<>(response, HttpStatus.OK);
+            return new ResponseEntity<>(resposta, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-
     }
-
 }

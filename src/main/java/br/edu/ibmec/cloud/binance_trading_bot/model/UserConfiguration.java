@@ -12,11 +12,11 @@ public class UserConfiguration {
     private Integer id;
 
     @Column
-    private Double lossPercent;
+    private Double porcentagemPerda;
 
     @Column
-    private Double profitPercent;
+    private Double porcentagemLucro;
 
     @Column
-    private Double quantityPerOrder;
+    private Double quantidadePorOrdem;
 }

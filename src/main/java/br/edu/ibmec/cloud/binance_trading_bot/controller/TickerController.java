@@ -25,49 +25,40 @@ import java.util.Optional;
 public class TickerController {
 
     @Autowired
-    private UserRepository repository;
+    private UserRepository repositorioUsuario;
 
     @Autowired
-    private BinanceIntegration binanceIntegration;
+    private BinanceIntegration integracaoBinance;
 
     @GetMapping
-    public ResponseEntity<List<TickerResponse>> getTickers(@PathVariable("id") int id) {
-        Optional<User> optUser = this.repository.findById(id);
+    public ResponseEntity<List<TickerResponse>> listarTickers(@PathVariable("id") int usuarioId) {
+        Optional<User> opcionalUsuario = this.repositorioUsuario.findById(usuarioId);
 
-        if (optUser.isEmpty())
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
+        if (opcionalUsuario.isEmpty())
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
-        //Pego os dados do usuario no banco
-        User user = optUser.get();
+        User usuario = opcionalUsuario.get();
+        ArrayList<String> listaSimbolos = new ArrayList<>();
 
-        //Obtendo as moedas cadastradas para consulta
-        ArrayList<String> tickers = new ArrayList<>();
-
-        for (UserTrackingTicker item: user.getTrackingTickers()) {
-            tickers.add(item.getSymbol());
+        for (UserTrackingTicker item : usuario.getTickersMonitorados()) {
+            listaSimbolos.add(item.getSimbolo());
         }
 
-        //Configurando a chave de acesso para binance
-        this.binanceIntegration.setAPI_KEY(user.getBinanceApiKey());
-        this.binanceIntegration.setSECRET_KEY(user.getBinanceSecretKey());
+        this.integracaoBinance.setAPI_KEY(usuario.getBinanceApiKey());
+        this.integracaoBinance.setSECRET_KEY(usuario.getBinanceSecretKey());
 
-        //Obtendo o ultimo preços das moedas cadastradas para o usuario
-        String result = this.binanceIntegration.getTickers(tickers);
+        String jsonResposta = this.integracaoBinance.getTickers(listaSimbolos);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        ObjectMapper mapeador = new ObjectMapper();
+        mapeador.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         try {
-            List<TickerResponse> response = objectMapper.readValue(result,
-                    new TypeReference<List<TickerResponse>>() {});
-            return new ResponseEntity<>(response, HttpStatus.OK);
+            List<TickerResponse> listaResposta = mapeador.readValue(
+                    jsonResposta,
+                    new TypeReference<List<TickerResponse>>() {}
+            );
+            return new ResponseEntity<>(listaResposta, HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-
-
     }
-
-
-
-
 }

@@ -2,7 +2,6 @@ package br.edu.ibmec.cloud.binance_trading_bot.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 @Data
@@ -13,17 +12,17 @@ public class UserOrderReport {
     private int id;
 
     @Column
-    private String symbol;
+    private String simbolo;
 
     @Column
-    private double quantity;
+    private double quantidade;
 
     @Column
-    private double buyPrice;
+    private double precoCompra;
 
     @Column
-    private double sellPrice;
+    private double precoVenda;
 
     @Column
-    private LocalDateTime dtOperation;
+    private LocalDateTime dataOperacao;
 }
