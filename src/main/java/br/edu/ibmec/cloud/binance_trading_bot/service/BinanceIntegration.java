@@ -17,23 +17,23 @@ public class BinanceIntegration {
     private String API_KEY;
     private String SECRET_KEY;
 
-    public String getTickers(ArrayList<String> symbols) {
+    public String getTickers(ArrayList<String> simbolo) {
         SpotClient client = new SpotClientImpl(this.API_KEY, this.SECRET_KEY, this.BASE_URL);
-        Map<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("symbols", symbols);
-        String result = client.createMarket().ticker(parameters);
+        Map<String, Object> parametro = new LinkedHashMap<>();
+        parametro.put("símbolo ", simbolo);
+        String result = client.createMarket().ticker(parametro);
         return result;
     }
 
-    public String createMarketOrder(String symbol, double quantity, String side) {
+    public String createMarketOrder(String simbolo, double quantidade, String lado) {
         SpotClient client = new SpotClientImpl(this.API_KEY, this.SECRET_KEY, this.BASE_URL);
 
-        Map<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("symbol", symbol);
-        parameters.put("side", side);
-        parameters.put("type", "MARKET");
-        parameters.put("quantity", quantity);
-        String result = client.createTrade().newOrder(parameters);
+        Map<String, Object> parametro = new LinkedHashMap<>();
+        parametro.put("símbolo", simbolo);
+        parametro.put("lado", lado);
+        parametro.put("tipo", "MARKET");
+        parametro.put("quantidade", quantidade);
+        String result = client.createTrade().newOrder(parametro);
         return result;
 
     }
